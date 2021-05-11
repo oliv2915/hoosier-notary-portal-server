@@ -1,5 +1,6 @@
 {
   "name": "hoosier-notary-portal-server",
+  "private": true,
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
