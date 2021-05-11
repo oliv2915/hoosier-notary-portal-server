@@ -2,11 +2,13 @@ require("dotenv").config();
 const Express = require("express");
 const app = Express();
 const db = require("./db");
-const cors = require("cors");
+const {CORS} = require("./middleware");
 
-app.use(cors);
+app.use(CORS);
 app.use(Express.json());
 
+const controllers = require("./controllers")
+app.use("/user", controllers.userController);
 
 db.authenticate().then(db.sync())
     .then(app.listen(process.env.PORT, console.log(`[Server]: Server is listening on ${process.env.PORT}`)))
