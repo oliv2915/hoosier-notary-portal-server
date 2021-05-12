@@ -37,14 +37,6 @@ const User = db.define("user", {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
-    isCustomer: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
-    },
-    isActiveCustomer: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
-    },
     isEmployee: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
