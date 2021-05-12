@@ -7,7 +7,6 @@ const {validateToken} = require("../middleware");
 /* 
     Register a user
     Users are registered as a notary by default.
-    Customer and employee registration not handled here
 */
 router.post("/register", (req, res) => {
     const {email, firstName, middleName, lastName, suffix, phoneNumber, password} = req.body.user;
@@ -64,6 +63,11 @@ router.post("/login", (req, res) => {
             return res.status(404).json({message: "Invalid email and/or password."});
         })
         .then(user => {
+            // prevent former employees from accesing the portal (isActiveEmployee will be false)
+            if (user.isEmployee && !user.isActiveEmployee) return res.status(403).json({message: "Forbidden"});
+            // if user is notary && (isEmployee || isSuper), forbidden (this should never happen)
+            if (user.isNotary && (user.isEmployee || user.isSuper)) return res.status(403).json({message: "Forbidden"});
+            
             // if provided password matches the found password, return a successful status with a token
             if (bcrypt.compare(password, user.password)) return res.status(200).json({
                 message: "User logged in",
@@ -77,11 +81,11 @@ router.post("/login", (req, res) => {
 /* 
     Update user
     User's can update their own profile.
-    Employees can update a notary and customer flags
-    Super Employees can update a notary, customeer, and employee flags
+    Employees can update notary flags only
+    Super Employees can update notary and employee flags
 */
 router.put("/update", validateToken, async (req, res) => {
-    const {email, firstName, middleName, lastName, suffix, phoneNumber, password, isActiveNotary, isActiveCustomer, isActiveEmployee, isSuper, userId} = req.body.user;
+    const {email, firstName, middleName, lastName, suffix, phoneNumber, password, isActiveNotary, isActiveEmployee, isSuper, userId} = req.body.user;
 
     let userDataToUpdate = {};
     const query = {};
@@ -93,7 +97,6 @@ router.put("/update", validateToken, async (req, res) => {
             // set the flags to be updated
             userDataToUpdate = {
                 isActiveNotary: isActiveNotary ? true : false,
-                isActiveCustomer: isActiveCustomer ? true : false
             }
             // only super user can change an employee flag
             if (req.user.isEmployee && req.user.isSuper) userDataToUpdate["isActiveEmployee"] = isActiveEmployee ? true : false;
@@ -103,7 +106,7 @@ router.put("/update", validateToken, async (req, res) => {
             const result = await UserModel.update(userDataToUpdate, query);
             if (result > 0) return res.status(200).json({message: "User updated successfully"});
             
-        } else if (req.user.isNotary || req.user.isCustomer || req.user.isEmployee) {
+        } else if (req.user.isNotary || req.user.isEmployee) {
             // set query parameters
             query.where = {id: req.user.id}
             // find the saved record
@@ -112,9 +115,9 @@ router.put("/update", validateToken, async (req, res) => {
                 // if provided field value matches the database, change nothing, else change saved value to new value
                 email: (email === foundUserRecord.email) ? foundUserRecord.email : email,
                 firstName: (firstName === foundUserRecord.firstName) ? foundUserRecord.firstName : firstName,
-                middleName: (middleName === foundUserRecord.middleName) ? foundUserRecord.middleName : middleName,
+                middleName: (middleName === foundUserRecord.middleName) ? foundUserRecord.middleName : (middleName !== undefined) ? middleName : null,
                 lastName: (lastName === foundUserRecord.lastName) ? foundUserRecord.lastName : lastName,
-                suffix: (suffix === foundUserRecord.suffix) ? foundUserRecord.suffix : suffix,
+                suffix: (suffix === foundUserRecord.suffix) ? foundUserRecord.suffix : (suffix !== undefined) ? suffix : null,
                 phoneNumber: (phoneNumber === foundUserRecord.phoneNumber) ? foundUserRecord.phoneNumber : phoneNumber,
                 password: await bcrypt.compare(password, foundUserRecord.password) ? foundUserRecord.password : bcrypt.hashSync(password, 13)
             }
@@ -145,8 +148,8 @@ router.get("/profile", validateToken, (req, res) => {
     // set query to pull that user record
     if (req.user.isEmployee && userId) {
         query.where = {id: userId};
-        // if user is a notary, customer, or employee, pull own record
-    } else if (req.user.isNotary || req.user.isCustomer || req.user.isEmployee) {
+        // if user is a notary, or employee, pull own record
+    } else if (req.user.isNotary || req.user.isEmployee) {
         query.where = {id: req.user.id};
     }
     UserModel.findOne(query)
@@ -163,8 +166,6 @@ router.get("/profile", validateToken, (req, res) => {
                     phoneNumber: user.phoneNumber,
                     isNotary: user.isNotary,
                     isActiveNotary: user.isActiveNotary,
-                    isCustomer: user.isCustomer,
-                    isActiveCustomer: user.isActiveCustomer,
                     isEmployee: user.isEmployee,
                     isActiveEmployee: user.isActiveEmployee,
                     isSuper: user.isSuper
