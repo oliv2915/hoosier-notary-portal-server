@@ -26,19 +26,12 @@ router.post("/add", validateToken, (req, res) => {
         email,
         customerType,
         notes: notes ? notes : null
-    }).then(newCustomer => newCustomer.get()).then(customer => {
-        return res.status(201).json({
-            message: "Customer created successfully",
-            customer: {
-                id: customer.id,
-                name: customer.name,
-                phoneNumber: customer.phoneNumber,
-                email: customer.email,
-                customerType: customer.customerType,
-                notes: customer.notes
-            }
-        })
-    }).catch(err => {
+    })
+    .then(newCustomer => newCustomer.get())
+    .then(customer => {
+        return res.status(201).json({message: "Customer created successfully"})
+    })
+    .catch(err => {
         if (err instanceof UniqueConstraintError) {
             return res.status(400).json({
                 message: "UniqueConstraintError",
@@ -71,7 +64,6 @@ router.put("/update", validateToken, async (req, res) => {
     try {
         // locate the currently saved customer record
         const foundCustomer = await CustomerModel.findOne(query).then(data => data.get());
-        console.log(foundCustomer.notes, notes)
         // update customer fields that have changes
         const updateResult = await CustomerModel.update({
             name: (name === foundCustomer.name) ? foundCustomer.name : name,
