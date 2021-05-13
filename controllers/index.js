@@ -3,5 +3,6 @@ module.exports = {
     customerController: require("./customerController"),
     addressController: require("./addressController"),
     contactController: require("./contactController"),
-    commissionController: require("./commissionController")
+    commissionController: require("./commissionController"),
+    assignmentController: require('./assignmentController')
 }
