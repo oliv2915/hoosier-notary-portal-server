@@ -10,6 +10,7 @@ app.use(Express.json());
 const controllers = require("./controllers");
 app.use("/user", controllers.userController);
 app.use("/customer", controllers.customerController);
+app.use("/customer/contact", controllers.contactController);
 app.use("/address", controllers.addressController);
 
 db.authenticate().then(db.sync())
