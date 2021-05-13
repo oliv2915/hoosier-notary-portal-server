@@ -33,7 +33,7 @@ router.post("/add", validateToken, (req, res) => {
     })
     .catch(err => {
         if (err instanceof UniqueConstraintError) {
-            return res.status(400).json({
+            return res.status(409).json({
                 message: "UniqueConstraintError",
                 error: "Email address already in use"
             });
@@ -76,7 +76,7 @@ router.put("/update", validateToken, async (req, res) => {
         if (updateResult > 0) return res.status(200).json({message: "Customer update successful"});
     } catch (err) {
         if (err instanceof UniqueConstraintError) {
-            return res.status(400).json({
+            return res.status(409).json({
                 message: "UniqueConstraintError",
                 error: "Email address already in use"
             });

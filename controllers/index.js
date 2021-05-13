@@ -1,5 +1,6 @@
 module.exports = {
     userController: require("./userController"),
     customerController: require("./customerController"),
-    addressController: require("./addressController")
+    addressController: require("./addressController"),
+    contactController: require("./contactController")
 }
