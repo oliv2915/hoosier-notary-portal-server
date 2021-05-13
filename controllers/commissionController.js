@@ -63,4 +63,33 @@ router.put("/update", validateToken, (req, res) => {
     .then(result => res.status(200).json({message: "Commission updated"}))
     .catch(err => res.status(500).json({message: "Error updating commission"}))
 });
+/*
+    Get Commission (Notary Only)
+*/
+router.get("/", validateToken, (req, res) => {
+    if (!req.user.isNotary) return res.status(401).json({message: "Not Authorized"});
+    const {commissionId} = req.body.commission;
+
+    CommissionModel.findOne({
+        where: {
+            id: commissionId,
+            userId: req.user.id
+        }
+    })
+    .then(foundCommission => foundCommission.get())
+    .then(commission => {
+        return res.status(200).json({
+            message: "Commission Found",
+            commission: {
+                id: commission.id,
+                commissionNumber: commission.commissionNumber,
+                nameOnCommission: commission.nameOnCommission,
+                commissionExpireDate: commission.commissionExpireDate,
+                commissionState: commission.commissionState,
+                countyOfResidence: commission.countyOfResidence
+            }
+        })
+    })
+    .catch(err => res.status(500).json({message: "Error getting comission"}))
+});
 module.exports = router;
