@@ -1,4 +1,4 @@
 module.exports = {
-    CORS: require("./headers"),
-    validateToken: require("./validateToken")
-}
+	CORS: require("./headers"),
+	validateToken: require("./validateToken"),
+};
