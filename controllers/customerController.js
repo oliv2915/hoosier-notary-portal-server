@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { CustomerModel } = require("../models");
+const { CustomerModel, ContactModel, AddressModel } = require("../models");
 const { UniqueConstraintError, ValidationError } = require("sequelize");
 const { validateToken } = require("../middleware");
 /* 
@@ -31,7 +31,9 @@ router.post("/add", validateToken, (req, res) => {
 	})
 		.then((newCustomer) => newCustomer.get())
 		.then((customer) => {
-			return res.status(201).json({ message: "Customer created successfully" });
+			return res.status(201).json({
+				customer,
+			});
 		})
 		.catch((err) => {
 			if (err instanceof UniqueConstraintError) {
@@ -57,14 +59,13 @@ router.put("/update", validateToken, async (req, res) => {
 	if (!req.user.isEmployee)
 		return res.status(401).json({ message: "Not Authorized" });
 
-	const { name, phoneNumber, email, customerType, notes, customerId } =
+	const { name, phoneNumber, email, customerType, notes, id } =
 		req.body.customer;
-	// check to see if customerId has been provided
-	if (!customerId)
-		return res.status(400).json({ message: "customerId is required" });
+	// check to see if id has been provided
+	if (!id) return res.status(400).json({ message: "id is required" });
 
 	const query = {
-		where: { id: customerId },
+		where: { id: id },
 	};
 	try {
 		// locate the currently saved customer record
@@ -119,15 +120,16 @@ router.get("/profile", validateToken, (req, res) => {
 	// only employees have access
 	if (!req.user.isEmployee)
 		return res.status(401).json({ message: "Not Authorized" });
-	const { customerId } = req.body.customer;
-	if (!customerId)
-		return res.status(400).json({ message: "customerId is required" });
+	const { id } = req.query;
+	if (!id) return res.status(400).json({ message: "customerId is required" });
 	// locate customer record
-	CustomerModel.findOne({ where: { id: customerId } })
+	CustomerModel.findOne({
+		where: { id: id },
+		include: [ContactModel, AddressModel],
+	})
 		.then((foundCustomer) => foundCustomer.get())
 		.then((customer) => {
 			return res.status(200).json({
-				message: "Customer Found",
 				customer: {
 					id: customer.id,
 					name: customer.name,
@@ -136,10 +138,29 @@ router.get("/profile", validateToken, (req, res) => {
 					customerType: customer.customerType,
 					notes: customer.notes,
 				},
+				contacts: customer.contacts,
+				addresses: customer.addresses,
+			});
+		})
+		.catch((err) => {
+			console.log(err);
+			res.status(500).json({ message: "Error getting customer profile" });
+		});
+});
+/*
+	Get All Customer Records (Employee Only)
+*/
+router.get("/all", validateToken, (req, res) => {
+	if (!req.user.isEmployee)
+		return res.status(401).json({ message: "Not Authorized" });
+	CustomerModel.findAll()
+		.then((foundCustomers) => {
+			return res.status(200).json({
+				customers: foundCustomers,
 			});
 		})
 		.catch((err) =>
-			res.status(500).json({ message: "Error getting customer profile" })
+			res.status(500).json({ message: "Error getting customer profiles" })
 		);
 });
 module.exports = router;

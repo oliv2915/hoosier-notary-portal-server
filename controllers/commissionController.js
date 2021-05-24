@@ -45,7 +45,7 @@ router.post("/add", validateToken, (req, res) => {
 		)
 		.catch((err) => {
 			if (err instanceof UniqueConstraintError) {
-				return res.status(400).json({
+				return res.status(409).json({
 					message: "UniqueConstraintError",
 					error: "Commission Number already in use",
 				});
@@ -71,7 +71,7 @@ router.put("/update", validateToken, (req, res) => {
 		commissionExpireDate,
 		commissionState,
 		countyOfResidence,
-		commissionId,
+		id,
 	} = req.body.commission;
 
 	CommissionModel.update(
@@ -84,15 +84,46 @@ router.put("/update", validateToken, (req, res) => {
 		},
 		{
 			where: {
-				id: commissionId,
+				id: id,
 				userId: req.user.id,
 			},
 		}
 	)
 		.then((result) => res.status(200).json({ message: "Commission updated" }))
-		.catch((err) =>
-			res.status(500).json({ message: "Error updating commission" })
-		);
+		.catch((err) => {
+			if (err instanceof UniqueConstraintError) {
+				return res.status(409).json({
+					message: "UniqueConstraintError",
+					error: "Commission Number already in use",
+				});
+			} else if (err instanceof ValidationError) {
+				return res.status(400).json({
+					message: "ValidationError",
+					error: err.errors,
+				});
+			} else {
+				return res.status(500).json({ message: "Error adding commission" });
+			}
+		});
+});
+/* 
+	Get All Commission Records
+*/
+router.get("/all", validateToken, (req, res) => {
+	const { userId } = req.query;
+	const query = {
+		where: {},
+	};
+	if (req.user.isEmployee) {
+		query.where = { userId: userId };
+	} else {
+		query.where = { userId: req.user.id };
+	}
+	CommissionModel.findAll(query).then((data) => {
+		res.status(200).json({
+			commissions: data,
+		});
+	});
 });
 /*
     Get Commission (Notary Only)
@@ -126,4 +157,5 @@ router.get("/", validateToken, (req, res) => {
 			res.status(500).json({ message: "Error getting comission" })
 		);
 });
+
 module.exports = router;

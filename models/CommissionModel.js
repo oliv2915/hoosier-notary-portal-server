@@ -12,11 +12,11 @@ const Commission = db.define("commission", {
 		allowNull: false,
 	},
 	commissionExpireDate: {
-		type: DataTypes.DATE,
+		type: DataTypes.DATEONLY,
 		allowNull: false,
 	},
 	commissionState: {
-		type: DataTypes.CHAR(2),
+		type: DataTypes.STRING,
 		allowNull: false,
 	},
 	countyOfResidence: {

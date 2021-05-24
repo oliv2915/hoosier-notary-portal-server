@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { UserModel } = require("../models");
+const { UserModel, CommissionModel, AddressModel } = require("../models");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { UniqueConstraintError, ValidationError } = require("sequelize");
@@ -104,9 +104,6 @@ router.post("/login", (req, res) => {
 });
 /* 
     Update user
-    User's can update their own profile.
-    Employees can update notary flags only
-    Super Employees can update notary and employee flags
 */
 router.put("/update", validateToken, async (req, res) => {
 	const {
@@ -120,71 +117,28 @@ router.put("/update", validateToken, async (req, res) => {
 		isActiveNotary,
 		isActiveEmployee,
 		isSuper,
-		userId,
+		id,
 	} = req.body.user;
 
-	let userDataToUpdate = {};
-	const query = {};
-
+	let userDataToUpdate = {
+		email,
+		firstName,
+		middleName,
+		lastName,
+		suffix,
+		phoneNumber,
+		password: password && bcrypt.hashSync(password, 13),
+		isActiveNotary,
+		isActiveEmployee,
+		isSuper,
+	};
+	const query = {
+		where: { id: id },
+	};
 	try {
-		if (req.user.isEmployee && userId !== undefined) {
-			// set query paramets
-			query.where = { id: userId };
-			// set the flags to be updated
-			userDataToUpdate = {
-				isActiveNotary: isActiveNotary ? true : false,
-			};
-			// only super user can change an employee flag
-			if (req.user.isEmployee && req.user.isSuper)
-				userDataToUpdate["isActiveEmployee"] = isActiveEmployee ? true : false;
-			// only super user can set an employee as a super
-			if (req.user.isEmployee && req.user.isSuper && isSuper !== undefined)
-				userDataToUpdate["isSuper"] = isSuper ? true : false;
-			// update user flags
-			const result = await UserModel.update(userDataToUpdate, query);
-			if (result > 0)
-				return res.status(200).json({ message: "User updated successfully" });
-		} else if (req.user.isNotary || req.user.isEmployee) {
-			// set query parameters
-			query.where = { id: req.user.id };
-			// find the saved record
-			const foundUserRecord = await UserModel.findOne(query);
-			userDataToUpdate = {
-				// if provided field value matches the database, change nothing, else change saved value to new value
-				email: email === foundUserRecord.email ? foundUserRecord.email : email,
-				firstName:
-					firstName === foundUserRecord.firstName
-						? foundUserRecord.firstName
-						: firstName,
-				middleName:
-					middleName === foundUserRecord.middleName
-						? foundUserRecord.middleName
-						: middleName !== undefined
-						? middleName
-						: null,
-				lastName:
-					lastName === foundUserRecord.lastName
-						? foundUserRecord.lastName
-						: lastName,
-				suffix:
-					suffix === foundUserRecord.suffix
-						? foundUserRecord.suffix
-						: suffix !== undefined
-						? suffix
-						: null,
-				phoneNumber:
-					phoneNumber === foundUserRecord.phoneNumber
-						? foundUserRecord.phoneNumber
-						: phoneNumber,
-				password: (await bcrypt.compare(password, foundUserRecord.password))
-					? foundUserRecord.password
-					: bcrypt.hashSync(password, 13),
-			};
-			// update the user
-			const result = await UserModel.update(userDataToUpdate, query);
-			if (result > 0)
-				return res.status(200).json({ message: "User updated successfully" });
-		}
+		const result = await UserModel.update(userDataToUpdate, query);
+		if (result > 0)
+			return res.status(200).json({ message: "User updated successfully" });
 	} catch (err) {
 		if (err instanceof UniqueConstraintError) {
 			return res.status(409).json({
@@ -201,17 +155,20 @@ router.put("/update", validateToken, async (req, res) => {
 	}
 });
 /*
-    Get user Profile
+    Get a user Profile
     User's can pull there own profile
     Only employees can pull another user profile
 */
 router.get("/profile", validateToken, (req, res) => {
-	const userId = "user" in req.body ? req.body.user.userId : undefined;
-	const query = {};
+	const { id } = req.query;
+	const query = {
+		where: {},
+		include: [AddressModel, CommissionModel],
+	};
 	// if user is an employee and userId has been provided, we are pulling a user record
 	// set query to pull that user record
-	if (req.user.isEmployee && userId) {
-		query.where = { id: userId };
+	if (req.user.isEmployee && id) {
+		query.where = { id: id };
 		// if user is a notary, or employee, pull own record
 	} else if (req.user.isNotary || req.user.isEmployee) {
 		query.where = { id: req.user.id };
@@ -234,10 +191,47 @@ router.get("/profile", validateToken, (req, res) => {
 					isActiveEmployee: user.isActiveEmployee,
 					isSuper: user.isSuper,
 				},
+				addresses: user.addresses,
+				commissions: user.commissions,
 			});
 		})
-		.catch((err) =>
-			res.status(500).json({ message: "Server error getting user profile" })
-		);
+		.catch((err) => {
+			res.status(500).json({ message: "Server error getting user profile" });
+		});
+});
+/*
+	Get All Notary Records (Employee Only)
+*/
+router.get("/notaries", validateToken, (req, res) => {
+	if (!req.user.isEmployee)
+		return res.status(401).json({ message: "Not Authorized" });
+
+	const query = {
+		where: {
+			isNotary: true,
+			isActiveNotary: false,
+		},
+	};
+
+	UserModel.findAll(query).then((notaries) => {
+		return res.status(200).json({
+			notaries: notaries.map((notary) => {
+				return {
+					id: notary.id,
+					email: notary.email,
+					firstName: notary.firstName,
+					middleName: notary.middleName,
+					lastName: notary.lastName,
+					suffix: notary.suffix,
+					phoneNumber: notary.phoneNumber,
+					isNotary: notary.isNotary,
+					isActiveNotary: notary.isActiveNotary,
+					isEmployee: notary.isEmployee,
+					isActiveEmployee: notary.isActiveEmployee,
+					isSuper: notary.isSuper,
+				};
+			}),
+		});
+	});
 });
 module.exports = router;

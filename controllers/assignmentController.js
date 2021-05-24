@@ -93,25 +93,26 @@ router.put("/update", validateToken, (req, res) => {
 		status,
 		customerId,
 		notaryId,
-		assignmentId,
+		id,
 	} = req.body.assignment;
 	// check for missing required fields
 	const missingRequiredFields = [];
 	if (!customerId) missingRequiredFields.push("customerId is required");
-	if (!assignmentId) missingRequiredFields.push("assignmentId is required");
+	if (!id) missingRequiredFields.push("id is required");
 	if (missingRequiredFields.length > 0)
 		return res.status(400).json({ message: missingRequiredFields });
 
 	const query = {
 		where: {
-			id: assignmentId,
+			id: id,
 			customerId: customerId,
 		},
 	};
 
 	let fieldsToUpdate = {};
 	// if notary is accepting assignment and has been approved, update userId field
-	if (req.user.isActiveNotary) fieldsToUpdate = { userId: req.user.id };
+	if (req.user.isActiveNotary)
+		fieldsToUpdate = { userId: req.user.id, status: status };
 	// if employee is updating the assignment, update all fields
 	if (req.user.isEmployee)
 		fieldsToUpdate = {
@@ -135,15 +136,14 @@ router.put("/update", validateToken, (req, res) => {
 		);
 });
 /*
-    Get Assignment (Employee and Active Notary)
+    Get an Assignment (Employee and Active Notary)
 */
 router.get("/", validateToken, (req, res) => {
-	const { assignmentId, customerId } = req.body.assignment;
+	const { id } = req.query;
 
 	const query = {
 		where: {
-			id: assignmentId,
-			customerId: customerId,
+			id: id,
 		},
 		include: [CustomerModel, UserModel],
 	};
@@ -151,22 +151,28 @@ router.get("/", validateToken, (req, res) => {
 	AssignmentModel.findOne(query)
 		.then((foundAssignment) => {
 			const assignment = {
-				id: foundAssignment.id,
-				fileNumber: foundAssignment.fileNumber,
-				dueDate: foundAssignment.dueDate,
-				notes: foundAssignment.notes,
-				contactName: foundAssignment.contactName,
-				contactPhoneNumber: foundAssignment.contactPhoneNumber,
-				contactEmail: foundAssignment.contactEmail,
-				meetingAddress: foundAssignment.meetingAddress,
-				rate: foundAssignment.rate,
-				type: foundAssignment.type,
-				status: foundAssignment.status,
+				assignment: {
+					id: foundAssignment.id,
+					customerId: foundAssignment.customerId,
+					userId: foundAssignment.userId,
+					fileNumber: foundAssignment.fileNumber,
+					dueDate: foundAssignment.dueDate,
+					notes: foundAssignment.notes,
+					contactName: foundAssignment.contactName,
+					contactPhoneNumber: foundAssignment.contactPhoneNumber,
+					contactEmail: foundAssignment.contactEmail,
+					meetingAddress: foundAssignment.meetingAddress,
+					rate: foundAssignment.rate,
+					type: foundAssignment.type,
+					status: foundAssignment.status,
+				},
 				customer: {
 					customerId: foundAssignment.customer.id,
 					name: foundAssignment.customer.name,
 					phoneNumber: foundAssignment.customer.phoneNumber,
 					email: foundAssignment.customer.email,
+					customerType: foundAssignment.customer.customerType,
+					notes: foundAssignment.customer.notes,
 				},
 				notary: foundAssignment.user
 					? {
@@ -177,13 +183,24 @@ router.get("/", validateToken, (req, res) => {
 							suffix: foundAssignment.user.suffix,
 							phoneNumber: foundAssignment.user.phoneNumber,
 							email: foundAssignment.user.email,
+							isActiveNotary: foundAssignment.user.isActiveNotary,
 					  }
-					: null,
+					: {},
 			};
 			return res.status(200).json(assignment);
 		})
-		.catch((err) =>
-			res.status(500).json({ message: "Error getting assignment" })
-		);
+		.catch((err) => {
+			res.status(500).json({ message: "Error getting assignment" });
+		});
+});
+/* 
+	Get All Assignments (Employee & Active Notary)
+*/
+router.get("/all", validateToken, (req, res) => {
+	AssignmentModel.findAll().then((assignments) =>
+		res.status(200).json({
+			assignments: assignments,
+		})
+	);
 });
 module.exports = router;

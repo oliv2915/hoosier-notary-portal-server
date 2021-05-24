@@ -14,7 +14,7 @@ const Address = db.define("address", {
 		allowNull: false,
 	},
 	state: {
-		type: DataTypes.CHAR(2),
+		type: DataTypes.STRING,
 		allowNull: false,
 	},
 	zipCode: {

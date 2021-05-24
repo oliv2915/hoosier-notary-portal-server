@@ -31,12 +31,10 @@ router.post("/add", validateToken, (req, res) => {
 		)
 		.catch((err) => {
 			if (err instanceof UniqueConstraintError) {
-				return res
-					.status(409)
-					.json({
-						message: "UniqueConstraintError",
-						error: "Email address already in use",
-					});
+				return res.status(409).json({
+					message: "UniqueConstraintError",
+					error: "Email address already in use",
+				});
 			} else if (err instanceof ValidationError) {
 				return res
 					.status(400)
@@ -52,7 +50,7 @@ router.post("/add", validateToken, (req, res) => {
 router.put("/update", validateToken, (req, res) => {
 	if (!req.user.isEmployee)
 		return res.status(401).json({ message: "Not Authorized" });
-	const { name, email, phoneNumber, customerId, contactId } = req.body.contact;
+	const { name, email, phoneNumber, customerId, id } = req.body.contact;
 
 	ContactModel.update(
 		{
@@ -62,7 +60,7 @@ router.put("/update", validateToken, (req, res) => {
 		},
 		{
 			where: {
-				id: contactId,
+				id: id,
 				customerId: customerId,
 			},
 		}
@@ -70,9 +68,20 @@ router.put("/update", validateToken, (req, res) => {
 		.then((result) =>
 			res.status(200).json({ message: "Contact updated successfully" })
 		)
-		.catch((err) =>
-			res.status(500).json({ message: "Error updating contact" })
-		);
+		.catch((err) => {
+			if (err instanceof UniqueConstraintError) {
+				return res.status(409).json({
+					message: "UniqueConstraintError",
+					error: "Email address already in use",
+				});
+			} else if (err instanceof ValidationError) {
+				return res
+					.status(400)
+					.json({ message: "ValidationError", error: err.errors });
+			} else {
+				return res.status(500).json({ message: "Error updating contact" });
+			}
+		});
 });
 /*
     Get Contact (Employee Only)
@@ -108,11 +117,11 @@ router.get("/", validateToken, (req, res) => {
 router.delete("/delete", validateToken, (req, res) => {
 	if (!req.user.isEmployee)
 		return res.status(401).json({ message: "Not Authorized" });
-	const { customerId, contactId } = req.body.contact;
+	const { customerId, id } = req.body.contact;
 
 	ContactModel.destroy({
 		where: {
-			id: contactId,
+			id: id,
 			customerId: customerId,
 		},
 	})

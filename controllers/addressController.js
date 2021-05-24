@@ -57,26 +57,18 @@ router.post("/add", validateToken, (req, res) => {
     Employees can update update a customer address only
 */
 router.put("/update", validateToken, async (req, res) => {
-	const {
-		streetOne,
-		streetTwo,
-		city,
-		state,
-		zipCode,
-		type,
-		addressId,
-		customerId,
-	} = req.body.address;
+	const { id, streetOne, streetTwo, city, state, zipCode, type, customerId } =
+		req.body.address;
 	// check for missing required fields
 	const missingRequiredFields = [];
-	if (!addressId) missingRequiredFields.push("addressId is required");
+	if (!id) missingRequiredFields.push("id is required");
 	if (req.user.isEmployee && !customerId)
 		missingRequiredFields.push("customerId is required");
 	if (missingRequiredFields.length > 0)
 		return res.status(400).json({ message: missingRequiredFields });
 
 	const query = {
-		where: { id: addressId },
+		where: { id: id },
 	};
 
 	try {
@@ -171,17 +163,17 @@ router.get("/", validateToken, (req, res) => {
     Employee can delete customer address only
 */
 router.delete("/delete", validateToken, (req, res) => {
-	const { addressId, customerId } = req.body.address;
+	const { id, customerId } = req.body.address;
 	// check for missing required fields
 	const missingRequiredFields = [];
-	if (!addressId) missingRequiredFields.push("addressId is required");
+	if (!id) missingRequiredFields.push("id is required");
 	if (req.user.isEmployee && !customerId)
 		missingRequiredFields.push("customerId is required");
 	if (missingRequiredFields.length > 0)
 		return res.status(400).json({ message: missingRequiredFields });
 
 	const query = {
-		where: { id: addressId },
+		where: { id: id },
 	};
 
 	// if notary, add userId to query
@@ -202,5 +194,19 @@ router.delete("/delete", validateToken, (req, res) => {
 			res.status(500).json({ message: "Error deleting address" })
 		);
 });
-
+/*
+	Get All Addresses (Notary Only)
+*/
+router.get("/all", validateToken, (req, res) => {
+	if (req.user.isEmployee)
+		return res.status(401).json({ message: "Not Authorized" });
+	AddressModel.findAll({
+		where: { userId: req.user.id },
+		order: [["updatedAt", "DESC"]],
+	}).then((addresses) =>
+		res.status(200).json({
+			addresses: addresses,
+		})
+	);
+});
 module.exports = router;

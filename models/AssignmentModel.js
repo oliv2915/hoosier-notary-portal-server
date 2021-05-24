@@ -7,7 +7,7 @@ const Assignment = db.define("assignment", {
 		allowNull: false,
 	},
 	dueDate: {
-		type: DataTypes.DATE,
+		type: DataTypes.STRING,
 		allowNull: false,
 	},
 	notes: {
